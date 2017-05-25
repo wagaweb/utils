@@ -2,6 +2,8 @@
 namespace WBF\components\utils;
 
 
+use WBF\components\mvc\HTMLView;
+
 class Posts {
 	/**
 	 * Get a list of post types without the blacklisted ones
@@ -125,6 +127,121 @@ class Posts {
 			return $attachment[0];
 		} else {
 			return false;
+		}
+	}
+
+	/**
+	 * Display the content navigation.
+	 *
+	 * This require a valid WBF View. Into this view some variables will be passed:
+	 * - {bool} $can_display_pagination
+	 * - {bool} $show_pagination
+	 * - {string} $pagination
+	 * - {int} $max_num_pages ($query->max_num_pages)
+	 *
+	 * @throws \Exception
+	 *
+	 * @param string|array $tpl_file a pointer to a file to render the template into. If array, must contain the file path at [0] and the plugin name at [1].
+	 * @param bool $show_pagination
+	 * @param bool $query
+	 * @param bool $current_page
+	 * @param string $paged_var_name You can supply different paged var name for multiple pagination. The name must be previously registered with add_rewrite_tag()
+	 */
+	static function the_post_navigation($tpl_file, $show_pagination = false, $query = false, $current_page = false, $paged_var_name = "paged"){
+		if($show_pagination){
+			if(!$query){
+				global $wp_query;
+				$query = $wp_query;
+			}
+			$big = 999999999; // need an unlikely integer
+			if($paged_var_name != "paged"){
+				$base =  add_query_arg([
+					$paged_var_name => "%#%"
+				]);
+				$base = home_url().$base;
+			}else{
+				$base =  str_replace( $big, '%#%', esc_url( get_pagenum_link( $big ) ) );
+			}
+			if(!$current_page){
+				if(!$query){
+					$current_page = max( 1, intval(get_query_var($paged_var_name)) );
+				}else{
+					$current_page = max(1, intval($query->get($paged_var_name)) );
+				}
+			}
+			$current_page = intval($current_page);
+			$paginate = paginate_links([
+				'base' => $base,
+				'format' => '?'.$paged_var_name.'=%#%',
+				'current' => $$current_page,
+				'total' => $query->max_num_pages
+			]);
+			$paginate_array = explode("\n",$paginate);
+			foreach($paginate_array as $k => $link){
+				$paginate_array[$k] = "<li>".$link."</li>";
+			}
+			$pagination = implode("\n",$paginate_array);
+		}else{
+			$pagination = "";
+		}
+
+		if(is_array($tpl_file)){
+			if(count($tpl_file) != 2){
+				throw new \Exception('Invalid number of indexes for $tpl_file');
+			}
+			$v = new HTMLView($tpl_file[0],$tpl_file[1]);
+		}else{
+			$v = new HTMLView($tpl_file);
+		}
+
+		$v->display([
+			'can_display_pagination' => true, //todo: do some condition?
+			'show_pagination' => $show_pagination,
+			'pagination' => $pagination,
+			'max_num_pages' => $query->max_num_pages
+		]);
+	}
+
+	/**
+	 * Adds a new custom column
+	 *
+	 * @param $post_type
+	 * @param $slug
+	 * @param $label
+	 * @param callable $display_callback
+	 * @param bool $sortable
+	 * @param bool|callable $sortable_callback
+	 *
+	 * @throws \Exception
+	 */
+	static function add_custom_column($post_type,$slug,$label, Callable $display_callback, $sortable = false, $sortable_callback = false){
+		add_filter("manage_".$post_type."_posts_columns", function($columns) use($slug,$label){
+			$columns[$slug] = $label;
+			return $columns;
+		}, 11, 2);
+		if($sortable){
+			add_filter('manage_edit-'.$post_type.'_sortable_columns', function($columns) use($slug){
+				$columns[$slug] = $slug;
+				return $columns;
+			});
+		}
+		add_action("manage_".$post_type."_posts_custom_column", function($column_name,$post_id) use($slug,$display_callback){
+			if($column_name == $slug){
+				$display_callback($post_id);
+			}
+		}, 11, 2);
+		if($sortable){
+			if(!$sortable_callback){
+				throw new \Exception("Sortable callback was not defined");
+			}
+			add_action( 'pre_get_posts', function($query) use($post_type, $sortable_callback){
+				if(!is_admin()) return;
+				if(!function_exists("get_current_screen")) return;
+				$screen = get_current_screen();
+				if(!$screen instanceof \WP_Screen) return;
+				if($screen->id != "edit-".$post_type) return;
+				$sortable_callback($query);
+			} );
 		}
 	}
 }
