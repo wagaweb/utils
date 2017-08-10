@@ -249,4 +249,49 @@ class Terms {
 
 		return $sortedTerms;
 	}
+
+	/**
+	 * @param \WP_Term $term
+	 *
+	 * @return string|false
+	 */
+	public static function get_post_type_by_term(\WP_Term $term){
+		$taxonomy = $term->taxonomy;
+		return self::get_post_type_by_taxonomy($taxonomy);
+	}
+
+	/**
+	 * @param \WP_Taxonomy|string $taxonomy
+	 *
+	 * @return string|false
+	 */
+	public static function get_post_type_by_taxonomy($taxonomy){
+		global $wp_taxonomies;
+		if($taxonomy instanceof \WP_Taxonomy){
+			$taxonomy = $taxonomy->name;
+		}
+
+		if(isset($taxonomy) && isset($wp_taxonomies[$taxonomy])){
+			$tax_obj = $wp_taxonomies[$taxonomy];
+			if(is_array($tax_obj->object_type) && !empty($tax_obj->object_type)){
+				return $tax_obj->object_type[0];
+			}
+		}
+		return false;
+	}
+
+	/**
+	 * Returns current taxonomy name or FALSE
+	 *
+	 * @return false|string
+	 */
+	public static function get_current_taxonomy(){
+		$o = get_queried_object();
+		if($o instanceof \WP_Term){
+			return $o->taxonomy;
+		}elseif($o instanceof \WP_Taxonomy){
+			return $o->name;
+		}
+		return false;
+	}
 }

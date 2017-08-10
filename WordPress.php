@@ -2,6 +2,8 @@
 namespace WBF\components\utils;
 
 
+use WBF\components\utils\woocommerce\WBF_Product_Variation;
+
 class WordPress {
 	/**
 	 * Return a sanitized version of blog name
@@ -59,5 +61,103 @@ class WordPress {
 	 */
 	static function is_wp_cli(){
 		return defined("WP_CLI") && WP_CLI;
+	}
+
+	/**
+	 * Get post type accordingly provided object
+	 *
+	 * @param $object
+	 *
+	 * @return false|string
+	 */
+	public static function get_object_post_type($object){
+		if($object instanceof \WP_Term){
+			return Terms::get_post_type_by_term($object);
+		}elseif($object instanceof \WP_Taxonomy){
+			return Terms::get_post_type_by_taxonomy($object);
+		}elseif($object instanceof \WP_Post_Type){
+			return $object->name;
+		}elseif($object instanceof \WP_Post){
+			return $object->post_type;
+		}
+		return false;
+	}
+
+	/**
+	 * Alias of get_post_meta() that returns the meta unserialized and cache the results.
+	 *
+	 * @param int|object $post if object id provided, it checks
+	 *
+	 * @return array
+	 */
+	static function get_post_metas($post){
+		$post_id = false;
+
+		if(!is_numeric($post)){
+			if($post instanceof \WP_Post){
+				if(isset($post->id)){
+					$post_id = $post->id;
+				}else{
+					$post_id = $post->ID;
+				}
+			}
+		}else{
+			$post_id = $post;
+		}
+
+		if(!$post_id) return [];
+
+		static $cache;
+		if(isset($cache[$post_id])) return $cache[$post_id];
+
+		$metas = array_map(function($value){
+			if(is_array($value) && isset($value[0])){
+				return maybe_unserialize($value[0]);
+			}else{
+				return $value;
+			}
+		},get_post_meta($post_id));
+
+		$cache[$post_id] = $metas;
+
+		return $metas;
+	}
+
+	/**
+	 * Alias of get_post_meta($post_id,$key,true) that cache the result. If called on a Variation
+	 *
+	 * @param int|object $post
+	 * @param string $key
+	 *
+	 * @return mixed
+	 */
+	public static function get_post_meta($post,$key){
+		$post_id = false;
+
+		if(!is_numeric($post)){
+			if($post instanceof \WP_Post){
+				if(isset($post->id)){
+					$post_id = $post->id;
+				}else{
+					$post_id = $post->ID;
+				}
+			}
+		}else{
+			$post_id = $post;
+		}
+
+		if(!$post_id) return [];
+
+		static $cache = [];
+
+		if(isset($cache[$post_id][$key])) return $cache[$post_id][$key];
+
+		$meta = get_post_meta($post_id,$key,true);
+
+		if($meta){
+			$cache[$post_id][$key] = $meta;
+		}
+
+		return $meta;
 	}
 }
