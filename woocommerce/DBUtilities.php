@@ -6,7 +6,9 @@ use WBF\components\utils\Utilities;
 
 trait DBUtilities {
 	/**
-	 * Set a variable product 'out-of-stock' directly from the DB if needed
+	 * Set a variable product 'out-of-stock' directly from the DB if needed.
+	 *
+	 * This function can help when you have products with 0 as stock quantity, but that are not properly set out-of-stock.
 	 *
 	 * @param $post_id
 	 *
@@ -14,7 +16,7 @@ trait DBUtilities {
 	 *
 	 * @return bool|false|int
 	 */
-	static function db_variable_product_maybe_set_out_of_stock($post_id,$pretend = false){
+	public static function db_variable_product_maybe_set_out_of_stock($post_id,$pretend = false){
 		global $wpdb;
 		$posts_table = $wpdb->prefix."posts";
 		$metas_table = $wpdb->prefix."postmeta";
@@ -42,13 +44,13 @@ trait DBUtilities {
 	}
 
 	/**
-	 * Get a variation parent directly from the DB
+	 * Get a variation parent directly from the DB. Useful to save some resource.
 	 *
 	 * @param $variation_id
 	 *
 	 * @return null|string
 	 */
-	static function db_get_product_variation_parent($variation_id){
+	public static function db_get_product_variation_parent($variation_id){
 		global $wpdb;
 		$posts_table = $wpdb->prefix."posts";
 		$parent = $wpdb->get_var("SELECT post_parent FROM {$posts_table} WHERE ID = {$variation_id}");
@@ -56,12 +58,12 @@ trait DBUtilities {
 	}
 
 	/**
-	 * Get metas of a Order directly from the database
+	 * Get metas of a Order directly from the DB. Useful to save some resources.
 	 *
 	 * @param $order_id
 	 * @return array|null|object
 	 */
-	static function db_get_order_meta($order_id,$lang = null){
+	public static function db_get_order_meta($order_id,$lang = null){
 		global $wpdb;
 
 		$meta = $wpdb->get_results("SELECT * FROM {$wpdb->postmeta} WHERE post_id = $order_id");
